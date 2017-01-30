@@ -1,0 +1,83 @@
+---
+title: "Machine Learning - Group Project"
+author: "Dewati Perdani"
+date: "1/28/2017"
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+install.packages("class")
+library(class)
+```
+
+(a) Build a k-Nearest Neighbours classifier in R for “wine_quality-white.csv” that:
+1. loads the data file;
+2. construct a new binary column “good wine” that indicates whether the wine is good
+(which we define as having a quality of 6 or higher) or not;
+3. splits the data set into a training data set (~40%), a validation data set (~30%) and a
+test data set (~30%) — make sure you shuffle the record before the split;
+4. normalises the data according to the Z-score transform;
+5. loads and trains the k-Nearest Neighbours classifiers for k = 1, .., 80;
+6. evaluates each classifier on the validation set and selects the best classifier;
+7. predicts the generalisation error using the test data set, as well as outputs the result
+in a confusion matrix.
+
+```{r}
+#1. loads the data file;
+whitew<-read.csv("/Users/dewatiperdani/Documents/Machine Learning/Group Project/winequality-white.csv",sep = ";", header = TRUE)
+
+#2. construct a new binary column “good wine” that indicates whether the wine is good(which we define as having a quality of 6 or higher) or not
+whitew$goodwine <- ifelse(whitew$quality>=6, 1, 0) #binary column for wine quality
+
+#3. splits the data set into a training data set (~40%), a validation data set (~30%) and atest data set (~30%) — make sure you shuffle the record before the split;
+set.seed(123)
+whitew_new<- whitew[sample(nrow(whitew)),] #shuffle the record
+
+wtrain <- whitew_new[1:1959,]
+wvalid <- whitew_new[1960:3429,]
+wtest <- whitew_new[3430:4898,] #splitting data
+
+#4. normalises the data according to the Z-score transform;
+normalize <- function(x) {
+return ((x - min(x)) / (max(x) - min(x))) }
+
+wtrain_n <- as.data.frame(lapply(wtrain[1:11], normalize))
+wvalid_n <- as.data.frame(lapply(wvalid[1:11], normalize))
+wtest_n <- as.data.frame(lapply(wtest[1:11], normalize))
+
+summary(wtest_n$density)#check normalised data
+
+#5. loads and trains the k-Nearest Neighbours classifiers for k = 1, .., 80;
+
+wtrain_label<-wtrain[,13]
+wvalid_label<-wvalid[,13]
+wtest_label<-wtest[,13]
+
+library(class)
+
+white_pred <- matrix(0, ncol = 80, nrow = 1470)
+for (i in seq(1:80))
+{white_pred[,i] <- knn(train = wtrain_n, test = wvalid_n, cl = wtrain_label, k = i)}
+
+pred <- as.data.frame(white_pred[,] - matrix(1, ncol = 80, nrow = 1470)) # transform cell value 2 to 1 (good quality) and 1 to 0 (not good quality))
+
+#6. evaluates each classifier on the validation set and selects the best classifier;
+white_eval<-as.data.frame(matrix(0,ncol = 1, nrow = 80))
+for (i in seq(1:80))
+{white_eval[i,] <- 100*sum(wvalid_label == pred[,i])/1470}
+
+names(white_eval)[1]<-"correct.prediction"
+white_eval[,"k"]<-seq(1:80)
+
+ggplot(white_eval, aes(x = k )) + geom_line(aes(y = correct.prediction)) 
+max(white_eval$correct.prediction)
+#best classifier is k=12 with percentage of correct prediction 73.47%
+
+#7. predicts the generalisation error using the test data set, as well as outputs the result in a confusion matrix.
+gen.error <- knn(train = wtrain_n, test = wtest_n, cl = wtrain_label, k = 12)
+table(gen.error, wtest_label) #confusion matrix 
+100 * sum(wtest_label == gen.error)/1469 #proportion of correct classification for k=12 is 71.41%
+
+```
+
