@@ -54,6 +54,12 @@ wtrain_label<-wtrain[,12]
 wvalid_label<-wvalid[,12]
 wtest_label<-wtest[,12]
 
+wtrain <- wtrain[,1:11]
+wvalid <- wvalid[,1:11]
+wtest  <- wtest[,1:11]
+
+
+
 white_pred <- data.frame(V1 = 1:1470)
 
 for (i in seq(1:80)){
@@ -72,13 +78,11 @@ white_eval[,"k"]<-seq(1:80)
 
 ggplot(white_eval, aes(x = k )) + geom_line(aes(y = correct.prediction)) 
 max(white_eval$correct.prediction)
-#best classifier is k=12 with percentage of correct prediction 73.47%
+#best classifier is k=18 with percentage of correct prediction 76.73469%
 
 #7. predicts the generalisation error using the test data set, as well as outputs the result in a confusion matrix.
-gen.error <- knn(wtrain, wtest, wtrain_label, k = 1)
+gen.error <- knn(wtrain, wtest, wtrain_label, k = 18)
 table(gen.error, wtest_label) #confusion matrix 
-100 * sum(wtest_label == gen.error)/1469 #proportion of correct classification for k=12 is 92.30769%
+100 * sum(wtest_label == gen.error)/1469 #proportion of correct classification for k=18 is 76.17427%
 
 ```
-
-Weird how we get k=1 to be the best...
