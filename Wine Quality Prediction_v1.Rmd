@@ -29,7 +29,7 @@ whitew<-read.csv("winequality-white.csv",sep = ";", header = TRUE)
 whitew$goodwine <- ifelse(whitew$quality>=6, 1, 0) #binary column for wine quality
 
 #3. splits the data set into a training data set (~40%), a validation data set (~30%) and atest data set (~30%) — make sure you shuffle the record before the split;
-set.seed(123)
+set.seed(2017)
 
 # we ignore the wine quality column because it is a deterministic relationship with good_wine
 
@@ -60,29 +60,48 @@ wtest  <- wtest[,1:11]
 
 
 
-white_pred <- data.frame(V1 = 1:1470)
+white_valid <- data.frame(V1 = 1:nrow(wvalid))
+white_train <- data.frame(V1 = 1:nrow(wtrain))
 
 for (i in seq(1:80)){
-  white_pred[,i] <- knn(wtrain, wvalid, cl = wtrain_label, k = i)
-  }
+  white_valid[,i] <- knn(wtrain, wvalid, cl = wtrain_label, k = i)
+  white_train[,i] <- knn(wtrain, wtrain, cl = wtrain_label, k = i)
+}
 
 #6. evaluates each classifier on the validation set and selects the best classifier;
 white_eval<-as.data.frame(matrix(0,ncol = 1, nrow = 80))
 names(white_eval)[1]<-"correct.prediction"
 
+white_eval.train<-as.data.frame(matrix(0,ncol = 1, nrow = 80))
+names(white_eval.train)[1]<-"correct.prediction"
+
 for (i in seq(1:80)){
-  white_eval[i,] <- 100*sum(wvalid_label == white_pred[,i])/1470
+  white_eval[i,] <- 100*sum(wvalid_label == white_valid[,i])/nrow(wvalid)
+  white_eval.train[i,] <- 100*sum(wtrain_label == white_train[,i])/nrow(wtrain)
   }
 
 white_eval[,"k"]<-seq(1:80)
+white_eval.train[,"k"] <-seq(1:80)
 
-ggplot(white_eval, aes(x = k )) + geom_line(aes(y = correct.prediction)) 
+white_eval$dataset <- "validation"
+white_eval.train$dataset <- "training"
+
+white_eval_full <- rbind(white_eval, white_eval.train)
+
+ggplot(white_eval_full, aes(x = k, col = dataset)) + geom_line(aes(y = 100 - correct.prediction)) + scale_x_reverse()
+
 max(white_eval$correct.prediction)
+white_eval$k[white_eval$correct.prediction == max(white_eval$correct.prediction)]
+
 #best classifier is k=18 with percentage of correct prediction 76.73469%
 
 #7. predicts the generalisation error using the test data set, as well as outputs the result in a confusion matrix.
-gen.error <- knn(wtrain, wtest, wtrain_label, k = 18)
-table(gen.error, wtest_label) #confusion matrix 
-100 * sum(wtest_label == gen.error)/1469 #proportion of correct classification for k=18 is 76.17427%
+gen.error <- knn(wtrain, wtest, wtrain_label, k = white_eval$k[white_eval$correct.prediction == max(white_eval$correct.prediction)])
+predicted <- gen.error
+actual <- wtest_label
+table(predicted, actual) #confusion matrix 
+100 * sum(wtest_label == gen.error)/nrow(wtest) #proportion of correct classification for k=18 is 76.17427%
 
 ```
+
+knn is not a suitable classifier because it barely distinguishes between the 0 class. It picks at random. Little lift. Very sensitive to k and the choice of k does not seem to matter.
