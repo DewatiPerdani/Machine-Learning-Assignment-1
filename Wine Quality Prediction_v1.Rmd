@@ -1,54 +1,47 @@
 ---
-title: "Machine Learning - Group Project"
+title: "Machine Learning - Group Project 1"
 author: "Group 4"
 date: "1/28/2017"
 output: html_document
 ---
 
-```{r}
-library(ggplot2)
-#install.packages("class")
-library(class)
+```{r message=FALSE}
+require(ggplot2)
+require(class)
+require(xtable)
 ```
 
-(a) Build a k-Nearest Neighbours classifier in R for “wine_quality-white.csv” that:
-1. loads the data file;
-2. construct a new binary column “good wine” that indicates whether the wine is good
-(which we define as having a quality of 6 or higher) or not;
-3. splits the data set into a training data set (~40%), a validation data set (~30%) and a test data set (~30%) — make sure you shuffle the record before the split;
-4. normalises the data according to the Z-score transform;
-5. loads and trains the k-Nearest Neighbours classifiers for k = 1, .., 80;
-6. evaluates each classifier on the validation set and selects the best classifier;
-7. predicts the generalisation error using the test data set, as well as outputs the result in a confusion matrix.
-
+####1. Loads the data file
 ```{r}
-#1. loads the data file;
-whitew<-read.csv("winequality-white.csv",sep = ";", header = TRUE)
-
-#2. construct a new binary column “good wine” that indicates whether the wine is good (which we define as having a quality of 6 or higher) or not
-whitew$goodwine <- ifelse(whitew$quality>=6, 1, 0) #binary column for wine quality
-
-#3. splits the data set into a training data set (~40%), a validation data set (~30%) and atest data set (~30%) — make sure you shuffle the record before the split;
 set.seed(2017)
+whitew<-read.csv("winequality-white.csv",sep = ";", header = TRUE)
+```
 
-# we ignore the wine quality column because it is a deterministic relationship with good_wine
+####2. Construct a new binary column “good wine” that indicates whether the wine is good.
+We define a good wine as having a quality of 6 or higher. We set 1 to be "good wine" and 0 to be "bad wine".
+```{r}
+whitew$goodwine <- ifelse(whitew$quality>=6, 1, 0) 
+```
 
-#4. normalises the data according to the Z-score transform;
+####4. Normalise the data according to the Z-score transform. 
+
+We do not normalise the wine quality column because it is our output predictor variable and also has a deterministic relationship with good_wine. We should normalise the data before splitting it in order to ensure consistent scaling across the various split datasets.
+```{r}
 whitew_scale <- as.data.frame(scale(whitew[1:11]))
 whitew_y <- as.data.frame(whitew[,13])
 colnames(whitew_y) <- "good_wine"
 whitew_scale <- cbind(whitew_scale, whitew_y)
+```
 
-whitew_shuffle<- whitew_scale[sample(nrow(whitew_scale)),] # shuffles observations
+####3. Split the data set into a training data set (~40%), a validation data set (~30%) and a test data set (~30%). Shuffle the record before the split. 
 
+We also separate the y variable (good_wine) from the rest of the predictors that we use in the k-nn algorithm.
+```{r}
+whitew_shuffle <- whitew_scale[sample(nrow(whitew_scale)),]
 
 wtrain <- whitew_shuffle[1:1959,]
 wvalid <- whitew_shuffle[1960:3429,]
-wtest <- whitew_shuffle[3430:4898,] #splits data into three sets
-
-summary(wtest)#check normalised data
-
-#5. loads and trains the k-Nearest Neighbours classifiers for k = 1, .., 80;
+wtest <- whitew_shuffle[3430:4898,]
 
 wtrain_label<-wtrain[,12]
 wvalid_label<-wvalid[,12]
@@ -57,51 +50,77 @@ wtest_label<-wtest[,12]
 wtrain <- wtrain[,1:11]
 wvalid <- wvalid[,1:11]
 wtest  <- wtest[,1:11]
+```
 
+####5. Load and train the k-Nearest Neighbours classifiers for k = 1, .., 80. 
 
-
+We use the best predictor from training the k Nearest Neighbors algorithm on the training set and finding the optimal value on the validation set.
+```{r}
 white_valid <- data.frame(V1 = 1:nrow(wvalid))
-white_train <- data.frame(V1 = 1:nrow(wtrain))
+
+for (i in seq(1:80)) {
+  white_valid[,i] <- knn(wtrain, wvalid, cl = wtrain_label, k = i)
+}
+```
+
+####6. Evaluate each classifier on the validation set and select the best classifier.
+```{r}
+white_eval <- as.data.frame(matrix(0,ncol = 1, nrow = 80))
+names(white_eval)[1]<-"correct.prediction"
 
 for (i in seq(1:80)){
-  white_valid[,i] <- knn(wtrain, wvalid, cl = wtrain_label, k = i)
+  white_eval[i,] <- 100*sum(wvalid_label == white_valid[,i])/nrow(wvalid)
+  }
+
+white_eval[,"k"]<-seq(1:80)
+
+min.error <- max(white_eval$correct.prediction)
+min.error.k <- white_eval$k[white_eval$correct.prediction == max(white_eval$correct.prediction)]
+```
+The best predictor is k = `r min.error.k` with a prediction accuracy on the validation set of `r round(min.error,3)`%.
+
+####Train and validate the k-Nearest Neighbors algorithm on the training set itself. 
+This code is only used for the plot afterwards and is not used to select the optimal k value.
+
+The code below is used to create a plot to see the performance of each value of k on both the training and validation sets. As k decreases, we expect the performance of the validation set to decrease, then find a minimum, and then increase at low values of k due to overfitting. As k decreases, we expect the performance of the training set to decrease until the error is 0 when k = 1. This is because the best predictor of an observation is the observation itself.
+```{r}
+white_train <- data.frame(V1 = 1:nrow(wtrain))
+
+for (i in seq(1:80)) {
   white_train[,i] <- knn(wtrain, wtrain, cl = wtrain_label, k = i)
 }
-
-#6. evaluates each classifier on the validation set and selects the best classifier;
-white_eval<-as.data.frame(matrix(0,ncol = 1, nrow = 80))
-names(white_eval)[1]<-"correct.prediction"
 
 white_eval.train<-as.data.frame(matrix(0,ncol = 1, nrow = 80))
 names(white_eval.train)[1]<-"correct.prediction"
 
-for (i in seq(1:80)){
-  white_eval[i,] <- 100*sum(wvalid_label == white_valid[,i])/nrow(wvalid)
+for (i in seq(1:80)) {
   white_eval.train[i,] <- 100*sum(wtrain_label == white_train[,i])/nrow(wtrain)
   }
 
-white_eval[,"k"]<-seq(1:80)
 white_eval.train[,"k"] <-seq(1:80)
-
-white_eval$dataset <- "validation"
 white_eval.train$dataset <- "training"
-
+white_eval$dataset <- "validation"
 white_eval_full <- rbind(white_eval, white_eval.train)
 
-ggplot(white_eval_full, aes(x = k, col = dataset)) + geom_line(aes(y = 100 - correct.prediction)) + scale_x_reverse()
+ggplot(white_eval_full, aes(x = k, col = dataset)) + geom_line(aes(y = 100 - correct.prediction)) + scale_x_reverse() + labs(title = "k-NN performance", x = "k", y = "Prediction Error Percentage")
+```
+The graph above follows the expected pattern previously described. The training data performance decreases as k decreases until it reaches perfect accuracy at k = 1. Additionally, the validation set performance follows a parabola with a minimum at k = `r min.error.k`. This makes sense because further decreasing k would imply overfitting which increases variance by trying to predict randomness. Finally, the validation prediction errors are always or nearly always above the training set errors. This also follows the expected pattern because the validation data has been unexposed to the values used to train the model.
 
-max(white_eval$correct.prediction)
-white_eval$k[white_eval$correct.prediction == max(white_eval$correct.prediction)]
-
-#best classifier is k=18 with percentage of correct prediction 76.73469%
-
-#7. predicts the generalisation error using the test data set, as well as outputs the result in a confusion matrix.
-gen.error <- knn(wtrain, wtest, wtrain_label, k = white_eval$k[white_eval$correct.prediction == max(white_eval$correct.prediction)])
+####7. Predict the generalisation error using the test data set, as well as output the result in a confusion matrix.
+```{r}
+gen.error <- knn(wtrain, wtest, wtrain_label, k = min.error.k)
 predicted <- gen.error
 actual <- wtest_label
-table(predicted, actual) #confusion matrix 
-100 * sum(wtest_label == gen.error)/nrow(wtest) #proportion of correct classification for k=18 is 76.17427%
-
+confusion.matrix <- table(predicted, actual)
+generalisation.error <- 100 - (100 * sum(wtest_label == gen.error)/nrow(wtest))
 ```
 
-knn is not a suitable classifier because it barely distinguishes between the 0 class. It picks at random. Little lift. Very sensitive to k and the choice of k does not seem to matter.
+```{r echo = FALSE}
+confusion.matrix
+```
+
+The generalisation error is `r round(generalisation.error,3)`% when k = `r min.error.k`. This is equivalent to a prediction accuracy of `r 100 - round(generalisation.error,3)`% on the test data set. This number represents our error rate when using the best k value that we picked from training on the training set and selecting k from performance on the validation set. Now we provide the algorithm with new data (the test set) in order to see its performance on "untainted" data.
+
+
+
+#knn is not a suitable classifier because it barely distinguishes between the 0 class. It picks at random. Little lift. Very sensitive to k and the choice of k does not seem to matter.
