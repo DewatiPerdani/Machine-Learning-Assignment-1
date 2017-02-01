@@ -104,6 +104,7 @@ white_eval_full <- rbind(white_eval, white_eval.train)
 
 ggplot(white_eval_full, aes(x = k, col = dataset)) + geom_line(aes(y = 100 - correct.prediction)) + scale_x_reverse() + labs(title = "k-NN performance", x = "k", y = "Prediction Error Percentage")
 ```
+
 The graph above follows the expected pattern previously described. The training data performance decreases as k decreases until it reaches perfect accuracy at k = 1. Additionally, the validation set performance follows a parabola with a minimum at k = `r min.error.k`. This makes sense because further decreasing k would imply overfitting which increases variance by trying to predict randomness. Finally, the validation prediction errors are always or nearly always above the training set errors. This also follows the expected pattern because the validation data has been unexposed to the values used to train the model.
 
 ####7. Predict the generalisation error using the test data set, as well as output the result in a confusion matrix.
