@@ -47,9 +47,9 @@ wtrain_label<-wtrain[,12]
 wvalid_label<-wvalid[,12]
 wtest_label<-wtest[,12]
 
-wtrain <- wtrain[,1:11]
-wvalid <- wvalid[,1:11]
-wtest  <- wtest[,1:11]
+wtrain <- as.data.frame(wtrain[,1:11])
+wvalid <- as.data.frame(wvalid[,1:11])
+wtest  <- as.data.frame(wtest[,1:11])
 ```
 
 ####5. Load and train the k-Nearest Neighbours classifiers for k = 1, .., 80. 
@@ -122,5 +122,8 @@ confusion.matrix
 The generalisation error is `r round(generalisation.error,3)`% when k = `r min.error.k`. This is equivalent to a prediction accuracy of `r 100 - round(generalisation.error,3)`% on the test data set. This number represents our error rate when using the best k value that we picked from training on the training set and selecting k from performance on the validation set. Now we provide the algorithm with new data (the test set) in order to see its performance on "untainted" data.
 
 
+#### How do you judge whether the classifier is well-suited for the data set?
 
-#knn is not a suitable classifier because it barely distinguishes between the 0 class. It picks at random. Little lift. Very sensitive to k and the choice of k does not seem to matter.
+The best k (k = `r min.error.k`) from the validation set performs at a `r 100-round(generalisation.error,3)`% level on the test dataset. On the surface this appears to be a relatively good prediction level. However, when we examine the confusion matrix, problems emerge. The classifier is not very well suited for the dataset. It can identify good wines quite well, not often predicting them to be bad. However, the converse is not true at all. When the wine is bad, the knn algorithm essentially picks at random. It does a poor job of identifying bad wines and often misclassifies them. This is important because the majority class is good wines and wine connoisseurs will react more poorly to receiving a poor wine than their pleasure at receiving a good wine. If this algorithm is designed to filter out bad wines (for example in a restaurant setting) then it does a poor job. When a bad wine appears, the algorithm nearly equally likely to return a false positive which looks poorly on a business. 
+
+Moreover, the knn algorithm does not perform especially well on the white wine dataset. Based on differing splits of the training and validation sets, the optimal value of k varies greatly. As seen by the graph above, the predictive power of the algorithm is barely affected by the choice of k, with only fractions of a percentage point being the difference. The optimal value appears as though it is selected from complete randomness. As seen in the graph, the validation performance does not display a parabolic shape that would suggest an optimal k, rather the function is essentially a straight line. Therefore, I would not recommend the use of the knn neighbor algorithm to be implemented in this case because of its poor performance on predicing bad wines and the large variability on an optimal k-value.
